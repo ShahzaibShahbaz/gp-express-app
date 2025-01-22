@@ -8,6 +8,12 @@ class UserModel {
   final String? phoneNumber;
   final DateTime createdAt;
   final bool isVerified;
+  // New GP-specific fields
+  final bool hasSubmittedId;
+  final bool isIdVerified;
+  final String? idSubmissionDate;
+  final bool hasSeenWelcome;
+  final DateTime? welcomeScreenSeenAt;
 
   UserModel({
     required this.uid,
@@ -17,6 +23,11 @@ class UserModel {
     this.phoneNumber,
     DateTime? createdAt,
     this.isVerified = false,
+    this.hasSubmittedId = false,
+    this.isIdVerified = false,
+    this.idSubmissionDate,
+    this.hasSeenWelcome = false,
+    this.welcomeScreenSeenAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
@@ -28,6 +39,11 @@ class UserModel {
       'phoneNumber': phoneNumber,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'isVerified': isVerified,
+      'hasSubmittedId': hasSubmittedId,
+      'isIdVerified': isIdVerified,
+      'idSubmissionDate': idSubmissionDate,
+      'hasSeenWelcome': hasSeenWelcome,
+      'welcomeScreenSeenAt': welcomeScreenSeenAt?.millisecondsSinceEpoch,
     };
   }
 
@@ -47,6 +63,13 @@ class UserModel {
           ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'])
           : DateTime.now(),
       isVerified: map['isVerified'] ?? false,
+      hasSubmittedId: map['hasSubmittedId'] ?? false,
+      isIdVerified: map['isIdVerified'] ?? false,
+      idSubmissionDate: map['idSubmissionDate'],
+      hasSeenWelcome: map['hasSeenWelcome'] ?? false,
+      welcomeScreenSeenAt: map['welcomeScreenSeenAt'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['welcomeScreenSeenAt'])
+          : null,
     );
   }
 }

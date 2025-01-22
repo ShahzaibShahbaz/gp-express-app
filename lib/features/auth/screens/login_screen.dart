@@ -44,6 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final success = await context.read<AuthProvider>().login(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
+          isGP: _isGP, // Pass the selected user type
         );
 
         if (success && mounted) {
@@ -53,10 +54,6 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           // Add a small delay before navigation
           await Future.delayed(const Duration(seconds: 1));
-          if (mounted) {
-            // TODO: Navigate to appropriate home screen based on user type
-            // Navigator.pushReplacement(...);
-          }
         }
       } catch (e) {
         if (mounted) {

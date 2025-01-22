@@ -17,18 +17,21 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
+  final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
   bool _obscurePassword = true;
   bool _isGP = false;
   bool _acceptTerms = false;
+  bool _hasSubmittedId = false;
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -41,13 +44,23 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
 
+    if (_isGP && !_hasSubmittedId) {
+      FeedbackUtils.showErrorSnackBar(
+        context,
+        'Please indicate that you have submitted your ID',
+      );
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       try {
         final success = await context.read<AuthProvider>().register(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
-          fullName: _usernameController.text.trim(),
+          fullName: _fullNameController.text.trim(),
           userType: _isGP ? UserType.gp : UserType.customer,
+          phoneNumber: _phoneController.text.trim(),
+          hasSubmittedId: _hasSubmittedId,
         );
 
         if (success && mounted) {
@@ -59,7 +72,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           await Future.delayed(const Duration(seconds: 2));
 
           if (mounted) {
-            // Pop back to login screen with the email
             Navigator.pop(context, _emailController.text);
           }
         }
@@ -85,14 +97,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             end: Alignment.bottomCenter,
             colors: [
               AppColors.primaryBlue,
-              AppColors.backgroundBlue.withOpacity(0.8),
+              AppColors.primaryBlue.withOpacity(0.8),
             ],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // Header with back button and app name
+              // Header with back button and logo
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -111,7 +123,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       ),
                     ),
                     const Spacer(),
-                    const SizedBox(width: 48), // For symmetry
+                    const SizedBox(width: 48),
                   ],
                 ),
               ),
@@ -134,9 +146,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Inscrivez-vous à gpExpress',
-                          style: TextStyle(
+                        Text(
+                          _isGP
+                              ? 'Inscription en tant que GP'
+                              : 'Inscription en tant que Client',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -144,12 +158,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         ),
                         const SizedBox(height: 32),
                         AuthTextField(
-                          label: 'Username',
-                          hint: 'Your username',
-                          controller: _usernameController,
+                          label: 'Full Name',
+                          hint: 'Enter your full name',
+                          controller: _fullNameController,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter your username';
+                              return 'Please enter your full name';
                             }
                             return null;
                           },
@@ -157,7 +171,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         const SizedBox(height: 24),
                         AuthTextField(
                           label: 'Email',
-                          hint: 'Your email',
+                          hint: 'Enter your email',
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
@@ -166,6 +180,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             }
                             if (!value.contains('@')) {
                               return 'Please enter a valid email';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        AuthTextField(
+                          label: 'Phone Number',
+                          hint: 'Enter your phone number',
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          validator: (value) {
+                            if (_isGP && (value == null || value.isEmpty)) {
+                              return 'Phone number is required for GPs';
                             }
                             return null;
                           },
@@ -199,6 +226,43 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             },
                           ),
                         ),
+                        if (_isGP) ...[
+                          const SizedBox(height: 24),
+                          // ID Submission Checkbox
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Checkbox(
+                                  value: _hasSubmittedId,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _hasSubmittedId = value ?? false;
+                                    });
+                                  },
+                                  fillColor: MaterialStateProperty.resolveWith(
+                                        (states) => states.contains(MaterialState.selected)
+                                        ? Colors.white
+                                        : Colors.transparent,
+                                  ),
+                                  checkColor: AppColors.primaryBlue,
+                                  side: const BorderSide(color: Colors.white),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'I confirm that I have submitted my ID document',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 24),
 
                         // Terms and Privacy Policy Checkbox
@@ -239,12 +303,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                         // Sign Up Button
                         AuthButton(
-                          text: 'Signup',
+                          text: 'Sign up',
                           onPressed: context.watch<AuthProvider>().isLoading
                               ? null
-                              : () async {  // Wrap in a synchronous callback
-                            await _register();
-                          },
+                              : _register,
                           isLoading: context.watch<AuthProvider>().isLoading,
                         ),
                         const SizedBox(height: 24),
@@ -254,7 +316,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text(
-                              'Vous avez déjà un compte ? ',
+                              'Already have an account? ',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
@@ -265,7 +327,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                   ? null
                                   : () => Navigator.pop(context),
                               child: const Text(
-                                'Se connecter',
+                                'Log in',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,

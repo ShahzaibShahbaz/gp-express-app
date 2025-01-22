@@ -6,13 +6,9 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get current user
   User? get currentUser => _auth.currentUser;
-
-  // Stream of auth state changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Get user data from Firestore
   Future<UserModel?> getUserData(String uid) async {
     try {
       final docSnapshot = await _firestore.collection('users').doc(uid).get();
@@ -21,17 +17,18 @@ class AuthService {
       }
     } catch (e) {
       print('Error getting user data: $e');
+      rethrow;
     }
     return null;
   }
 
-  // Register user
   Future<UserModel?> registerUser({
     required String email,
     required String password,
     required String fullName,
     required UserType userType,
     String? phoneNumber,
+    bool hasSubmittedId = false,
   }) async {
     try {
       // Create user in Firebase Auth
@@ -41,16 +38,19 @@ class AuthService {
       );
 
       if (authResult.user != null) {
-        // Create user model
+        // Create user model with additional GP fields if necessary
         final UserModel newUser = UserModel(
           uid: authResult.user!.uid,
           email: email,
           fullName: fullName,
           userType: userType,
           phoneNumber: phoneNumber,
+          hasSubmittedId: hasSubmittedId,
+          isIdVerified: false,
+          idSubmissionDate: userType == UserType.gp ? DateTime.now().toIso8601String() : null,
         );
 
-        // Save user data to Firestore
+        // Save user data to Firestore with security rules
         await _firestore
             .collection('users')
             .doc(authResult.user!.uid)
@@ -64,19 +64,34 @@ class AuthService {
     return null;
   }
 
-  // Sign in user
   Future<UserModel?> signIn({
     required String email,
     required String password,
+    required UserType expectedUserType,
   }) async {
     try {
+      // First, attempt to sign in with Firebase Auth
       final UserCredential authResult = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       if (authResult.user != null) {
-        return await getUserData(authResult.user!.uid);
+        // Get user data from Firestore
+        final userData = await getUserData(authResult.user!.uid);
+
+        if (userData == null) {
+          await _auth.signOut(); // Sign out if user data not found
+          throw 'User data not found';
+        }
+
+        // Verify user type matches
+        if (userData.userType != expectedUserType) {
+          await _auth.signOut(); // Sign out if user type doesn't match
+          throw 'Invalid user type. Please select the correct user type.';
+        }
+
+        return userData;
       }
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
@@ -84,21 +99,10 @@ class AuthService {
     return null;
   }
 
-  // Sign out
   Future<void> signOut() async {
     await _auth.signOut();
   }
 
-  // Password reset
-  Future<void> resetPassword(String email) async {
-    try {
-      await _auth.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
-    }
-  }
-
-  // Handle Firebase Auth exceptions
   String _handleAuthException(FirebaseAuthException e) {
     switch (e.code) {
       case 'weak-password':

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/services/auth_service.dart';
@@ -23,6 +24,8 @@ class AuthProvider extends ChangeNotifier {
   String? get loadingMessage => _loadingMessage;
   bool get isLoading => _state == AuthState.authenticating;
   bool get isAuthenticated => _user != null;
+  bool get isGP => _user?.userType == UserType.gp;
+
 
   void init() {
     _authService.authStateChanges.listen((User? firebaseUser) async {
@@ -57,47 +60,30 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> login({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      _state = AuthState.authenticating;
-      _loadingMessage = 'Signing in...';
-      _error = null;
-      notifyListeners();
-
-      _user = await _authService.signIn(
-        email: email,
-        password: password,
-      );
-
-      if (_user != null) {
-        _state = AuthState.authenticated;
-        notifyListeners();
-        return true;
-      } else {
-        _setErrorState('Failed to sign in. Please check your credentials.');
-        return false;
-      }
-    } catch (e) {
-      _setErrorState(e.toString());
-      rethrow; // Rethrow to handle in the UI
-    }
-  }
-
   Future<bool> register({
     required String email,
     required String password,
     required String fullName,
     required UserType userType,
     String? phoneNumber,
+    bool hasSubmittedId = false,
   }) async {
     try {
-      _state = AuthState.authenticating;
-      _loadingMessage = 'Creating your account...';
-      _error = null;
-      notifyListeners();
+      // Validate registration data
+      final validationError = _validateRegistrationData(
+        email: email,
+        password: password,
+        fullName: fullName,
+        userType: userType,
+        phoneNumber: phoneNumber,
+      );
+
+      if (validationError != null) {
+        _setErrorState(validationError);
+        return false;
+      }
+
+      _setLoadingState('Creating your account...');
 
       _user = await _authService.registerUser(
         email: email,
@@ -105,6 +91,7 @@ class AuthProvider extends ChangeNotifier {
         fullName: fullName,
         userType: userType,
         phoneNumber: phoneNumber,
+        hasSubmittedId: hasSubmittedId,
       );
 
       if (_user != null) {
@@ -117,7 +104,74 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (e) {
       _setErrorState(e.toString());
-      rethrow; // Rethrow to handle in the UI
+      rethrow;
+    }
+  }
+
+  String? _validateRegistrationData({
+    required String email,
+    required String password,
+    required String fullName,
+    required UserType userType,
+    String? phoneNumber,
+  }) {
+    if (email.isEmpty || !email.contains('@')) {
+      return 'Please enter a valid email address';
+    }
+    if (password.isEmpty || password.length < 6) {
+      return 'Password must be at least 6 characters long';
+    }
+    if (fullName.isEmpty) {
+      return 'Please enter your full name';
+    }
+    if (userType == UserType.gp && (phoneNumber == null || phoneNumber.isEmpty)) {
+      return 'Phone number is required for GP registration';
+    }
+    return null;
+  }
+
+
+  Future<bool> isFirstTimeLogin() async {
+    try {
+      if (_user?.uid == null) return false;
+
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .get();
+
+      return !(docSnapshot.data()?['hasSeenWelcome'] ?? false);
+    } catch (e) {
+      debugPrint('Error checking first-time login: $e');
+      return false;
+    }
+  }
+
+  Future<bool> login({
+    required String email,
+    required String password,
+    required bool isGP,
+  }) async {
+    try {
+      _setLoadingState('Signing in...');
+
+      _user = await _authService.signIn(
+        email: email,
+        password: password,
+        expectedUserType: isGP ? UserType.gp : UserType.customer,
+      );
+
+      if (_user != null) {
+        _state = AuthState.authenticated;
+        notifyListeners();
+        return true;
+      } else {
+        _setErrorState('Failed to sign in. Please check your credentials.');
+        return false;
+      }
+    } catch (e) {
+      _setErrorState(e.toString());
+      rethrow;
     }
   }
 
@@ -133,22 +187,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  String? _validateRegistrationData({
-    required String email,
-    required String password,
-    required String fullName,
-  }) {
-    if (email.isEmpty || !email.contains('@')) {
-      return 'Please enter a valid email address';
-    }
-    if (password.isEmpty || password.length < 6) {
-      return 'Password must be at least 6 characters long';
-    }
-    if (fullName.isEmpty) {
-      return 'Please enter your full name';
-    }
-    return null;
-  }
+
 
   String? _validateLoginData({
     required String email,
