@@ -2,22 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/color_constants.dart';
-import '../../../core/widgets/gp_bottom_navbar.dart';
-import '../../../core/widgets/add_mission_fab.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/mission_model.dart';
-import 'add_mission_screen.dart';
-import 'gp_home_screen.dart';
 
-class MyMissionsScreen extends StatefulWidget {
+class MyMissionsScreen extends StatelessWidget {
   const MyMissionsScreen({Key? key}) : super(key: key);
-
-  @override
-  State<MyMissionsScreen> createState() => _MyMissionsScreenState();
-}
-
-class _MyMissionsScreenState extends State<MyMissionsScreen> {
-  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -53,10 +42,11 @@ class _MyMissionsScreenState extends State<MyMissionsScreen> {
             doc.data() as Map<String, dynamic>,
             doc.id,
           ))
-              .toList() ?? [];
+              .toList() ??
+              [];
 
-          final totalCapacity = missions.fold<int>(0,
-                  (sum, mission) => sum + mission.capacity);
+          final totalCapacity = missions.fold<int>(
+              0, (sum, mission) => sum + mission.capacity);
           final usedCapacity = missions
               .where((m) => m.status == MissionStatus.approved)
               .fold<int>(0, (sum, mission) => sum + mission.capacity);
@@ -64,7 +54,7 @@ class _MyMissionsScreenState extends State<MyMissionsScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _CapacityIndicator(used: usedCapacity, total: 10),
+              _CapacityIndicator(used: usedCapacity, total: totalCapacity),
               const SizedBox(height: 24),
               const Text(
                 'Mission approuvées',
@@ -91,34 +81,9 @@ class _MyMissionsScreenState extends State<MyMissionsScreen> {
           );
         },
       ),
-      bottomNavigationBar: GPBottomNavBar(
-        selectedIndex: _selectedIndex,
-        onIndexChanged: (index) {
-          if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const GPHomeScreen()),
-            );
-          }
-          setState(() => _selectedIndex = index);
-        },
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 0, right: 25),
-        child: AddMissionFAB(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AddMissionScreen()),
-            );
-          },
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
-
 class _CapacityIndicator extends StatelessWidget {
   final int used;
   final int total;
@@ -127,7 +92,8 @@ class _CapacityIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percentage = (used / total * 100).round();
+    // Handle case when total is 0 to avoid division by zero
+    final percentage = total > 0 ? (used / total * 100).round() : 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,19 +105,21 @@ class _CapacityIndicator extends StatelessWidget {
               'Capacité de poids',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            Text('$used/$total Kg'),
+            Text('$used/${total > 0 ? total : "-"} Kg'),
           ],
         ),
         const SizedBox(height: 8),
         LinearProgressIndicator(
-          value: used / total,
+          value: total > 0 ? used / total : 0,
           backgroundColor: Colors.grey[300],
           color: AppColors.primaryBlue,
           minHeight: 8,
         ),
         const SizedBox(height: 4),
         Text(
-          'jusqu\'à le fin de poids',
+          total > 0
+              ? 'jusqu\'à $percentage% du poids maximal'
+              : 'Aucune capacité définie',
           style: TextStyle(color: Colors.grey[600], fontSize: 12),
         ),
       ],

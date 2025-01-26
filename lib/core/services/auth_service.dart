@@ -50,11 +50,15 @@ class AuthService {
           idSubmissionDate: userType == UserType.gp ? DateTime.now().toIso8601String() : null,
         );
 
-        // Save user data to Firestore with security rules
+        // Important: Store userType as 'gp' or 'customer' string
+        final userData = newUser.toMap();
+        userData['userType'] = userType == UserType.gp ? 'gp' : 'customer'; // Ensure exact match with rules
+
+        // Save user data to Firestore
         await _firestore
             .collection('users')
             .doc(authResult.user!.uid)
-            .set(newUser.toMap());
+            .set(userData);
 
         return newUser;
       }

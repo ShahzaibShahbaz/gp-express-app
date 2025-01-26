@@ -1,47 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:gp_express_application/features/auth/screens/splash_screen.dart';
-import 'package:gp_express_application/root.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
+import 'core/constants/color_constants.dart';
 import 'features/auth/providers/auth_provider.dart';
-import 'features/auth/screens/login_screen.dart';
+import 'features/auth/screens/splash_screen.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
+
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  final authProvider = AuthProvider();
-  authProvider.init();
-
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: authProvider)
+        ChangeNotifierProvider(create: (_) {
+          final provider = AuthProvider();
+          provider.init(); // Initialize auth state
+          return provider;
+        }),
       ],
       child: const MyApp(),
     ),
   );
 }
 
-
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'GP Express',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primaryColor: AppColors.primaryBlue,
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryBlue),
         useMaterial3: true,
       ),
-      home: const Root(),
+      home: const SplashScreen(),
     );
   }
 }

@@ -1,69 +1,11 @@
-// lib/features/gp/screens/home/gp_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/widgets/gp_bottom_navbar.dart';
-import '../../../../core/widgets/add_mission_fab.dart';
-
 import 'package:provider/provider.dart';
-
 import '../../../core/constants/color_constants.dart';
 import '../../auth/providers/auth_provider.dart';
-import 'add_mission_screen.dart';
-import 'my_missions_screen.dart';
 
-class GPHomeScreen extends StatefulWidget {
+class GPHomeScreen extends StatelessWidget {
   const GPHomeScreen({super.key});
-
-  @override
-  State<GPHomeScreen> createState() => _GPHomeScreenState();
-}
-
-class _GPHomeScreenState extends State<GPHomeScreen> {
-  int _selectedIndex = 1;
-
-  void _onIndexChanged(int index) {
-    if (index == 0) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const MyMissionsScreen()),
-      );
-      return;
-    }
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  void _onAddMissionPressed() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const AddMissionScreen(),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: const GPHomeContent(),
-      bottomNavigationBar: GPBottomNavBar(
-        selectedIndex: _selectedIndex,
-        onIndexChanged: _onIndexChanged,
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 0, right: 25),
-        child: AddMissionFAB(
-          onPressed: _onAddMissionPressed,
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-    );
-  }
-}
-
-class GPHomeContent extends StatelessWidget {
-  const GPHomeContent({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -171,18 +113,7 @@ class _MissionCard extends StatelessWidget {
                         'Arr: ${_formatDateTime(arrivalTime)}',
                         style: const TextStyle(color: Colors.grey),
                       ),
-                      Text(
-                        'Capacity: ${data['capacity']} KG',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
                     ],
-                  ),
-                ),
-                Text(
-                  '0%',
-                  style: TextStyle(
-                    color: Theme.of(context).primaryColor,
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],

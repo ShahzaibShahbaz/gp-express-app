@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/text_constants.dart';
-import '../../gp/screens/gp_home_screen.dart';
+import '../../../core/navigation/main_navigation.dart';
 import '../providers/auth_provider.dart';
-
 import 'login_screen.dart';
 
 class SplashScreen extends StatelessWidget {
@@ -38,9 +37,7 @@ class SplashScreen extends StatelessWidget {
                     if (auth.isAuthenticated) {
                       Future.microtask(() => Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
-                          builder: (_) => auth.isGP
-                              ? const GPHomeScreen()
-                              : const Text("he"),
+                          builder: (_) => const MainNavigation(),
                         ),
                       ));
                     } else if (auth.state == AuthState.initial) {

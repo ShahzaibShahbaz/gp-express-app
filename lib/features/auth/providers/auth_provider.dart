@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../core/services/auth_service.dart';
 import '../models/user_model.dart';
 
 enum AuthState {
@@ -12,7 +11,9 @@ enum AuthState {
 }
 
 class AuthProvider extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   UserModel? _user;
   AuthState _state = AuthState.initial;
   String? _error;
@@ -26,10 +27,9 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
   bool get isGP => _user?.userType == UserType.gp;
 
-
   void init() {
     debugPrint("Initializing AuthProvider");
-    _authService.authStateChanges.listen((User? firebaseUser) async {
+    _auth.authStateChanges().listen((User? firebaseUser) async {
       debugPrint("Auth state changed: User ${firebaseUser?.uid}");
       if (firebaseUser == null) {
         _user = null;
@@ -37,9 +37,18 @@ class AuthProvider extends ChangeNotifier {
       } else {
         _setLoadingState('Loading user data...');
         try {
-          _user = await _authService.getUserData(firebaseUser.uid);
-          _state = AuthState.authenticated;
-          debugPrint("User authenticated: ${_user?.email}");
+          final docSnapshot = await _firestore
+              .collection('users')
+              .doc(firebaseUser.uid)
+              .get();
+
+          if (docSnapshot.exists) {
+            _user = UserModel.fromMap(docSnapshot.data()!, firebaseUser.uid);
+            _state = AuthState.authenticated;
+            debugPrint("User authenticated: ${_user?.email}");
+          } else {
+            _setErrorState('User data not found');
+          }
         } catch (e) {
           debugPrint("Error loading user data: $e");
           _setErrorState('Error loading user data');
@@ -67,85 +76,72 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required String fullName,
-    required UserType userType,
+    required bool isGP,
     String? phoneNumber,
-    bool hasSubmittedId = false,
   }) async {
     try {
-      // Validate registration data
-      final validationError = _validateRegistrationData(
+      _setLoadingState('Creating account...');
+
+      // Create user in Firebase Auth
+      final UserCredential authResult = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
-        fullName: fullName,
-        userType: userType,
-        phoneNumber: phoneNumber,
       );
 
-      if (validationError != null) {
-        _setErrorState(validationError);
-        return false;
-      }
+      if (authResult.user != null) {
+        // Create user data for Firestore
+        final userData = {
+          'email': email,
+          'fullName': fullName,
+          'userType': isGP ? 'gp' : 'customer',
+          'phoneNumber': phoneNumber,
+          'createdAt': FieldValue.serverTimestamp(),
+          'isVerified': false,
+          'hasSubmittedId': false,
+          'isIdVerified': false,
+          'hasSeenWelcome': false,
+        };
 
-      _setLoadingState('Creating your account...');
+        // Save to Firestore
+        await _firestore
+            .collection('users')
+            .doc(authResult.user!.uid)
+            .set(userData);
 
-      _user = await _authService.registerUser(
-        email: email,
-        password: password,
-        fullName: fullName,
-        userType: userType,
-        phoneNumber: phoneNumber,
-        hasSubmittedId: hasSubmittedId,
-      );
+        // Create UserModel
+        _user = UserModel(
+          uid: authResult.user!.uid,
+          email: email,
+          fullName: fullName,
+          userType: isGP ? UserType.gp : UserType.customer,
+          phoneNumber: phoneNumber,
+          createdAt: DateTime.now(),
+        );
 
-      if (_user != null) {
         _state = AuthState.authenticated;
         notifyListeners();
         return true;
-      } else {
-        _setErrorState('Failed to create account. Please try again.');
-        return false;
       }
+      return false;
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'weak-password':
+          errorMessage = 'The password provided is too weak.';
+          break;
+        case 'email-already-in-use':
+          errorMessage = 'An account already exists for that email.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'The email address is invalid.';
+          break;
+        default:
+          errorMessage = e.message ?? 'An error occurred during registration.';
+      }
+      _setErrorState(errorMessage);
+      return false;
     } catch (e) {
       _setErrorState(e.toString());
-      rethrow;
-    }
-  }
-
-  String? _validateRegistrationData({
-    required String email,
-    required String password,
-    required String fullName,
-    required UserType userType,
-    String? phoneNumber,
-  }) {
-    if (email.isEmpty || !email.contains('@')) {
-      return 'Please enter a valid email address';
-    }
-    if (password.isEmpty || password.length < 6) {
-      return 'Password must be at least 6 characters long';
-    }
-    if (fullName.isEmpty) {
-      return 'Please enter your full name';
-    }
-    if (userType == UserType.gp && (phoneNumber == null || phoneNumber.isEmpty)) {
-      return 'Phone number is required for GP registration';
-    }
-    return null;
-  }
-
-
-  Future<bool> isFirstTimeLogin() async {
-    try {
-      if (_user?.uid == null) return false;
-
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_user!.uid)
-          .get();
-
-      return !(docSnapshot.data()?['hasSeenWelcome'] ?? false);
-    } catch (e) {
-      debugPrint('Error checking first-time login: $e');
       return false;
     }
   }
@@ -157,31 +153,58 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     try {
       _setLoadingState('Signing in...');
+      debugPrint('Attempting login with isGP: $isGP');
 
-      _user = await _authService.signIn(
+      final UserCredential authResult = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
-        expectedUserType: isGP ? UserType.gp : UserType.customer,
       );
 
-      if (_user != null) {
+      if (authResult.user != null) {
+        debugPrint('Firebase Auth successful, checking Firestore data...');
+
+        final docSnapshot = await _firestore
+            .collection('users')
+            .doc(authResult.user!.uid)
+            .get();
+
+        if (!docSnapshot.exists) {
+          debugPrint('No Firestore document found for user');
+          await _auth.signOut();
+          _setErrorState('User data not found');
+          return false;
+        }
+
+        final userData = docSnapshot.data()!;
+        final userType = userData['userType'] as String?;
+
+        debugPrint('Found user type: $userType, expecting: ${isGP ? 'gp' : 'customer'}');
+
+        if ((isGP && userType != 'gp') || (!isGP && userType != 'customer')) {
+          debugPrint('User type mismatch - signing out');
+          await _auth.signOut();
+          _setErrorState('Invalid user type. Please select the correct user type.');
+          return false;
+        }
+
+        debugPrint('Login successful, creating UserModel');
+        _user = UserModel.fromMap(userData, authResult.user!.uid);
         _state = AuthState.authenticated;
         notifyListeners();
         return true;
-      } else {
-        _setErrorState('Failed to sign in. Please check your credentials.');
-        return false;
       }
+      return false;
     } catch (e) {
+      debugPrint('Login error: $e');
       _setErrorState(e.toString());
-      rethrow;
+      return false;
     }
   }
 
   Future<void> signOut() async {
     try {
       _setLoadingState('Signing out...');
-      await _authService.signOut();
+      await _auth.signOut();
       _user = null;
       _state = AuthState.initial;
       notifyListeners();
@@ -190,19 +213,22 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshUserData() async {
+    try {
+      if (_user?.uid != null) {
+        final docSnapshot = await _firestore
+            .collection('users')
+            .doc(_user!.uid)
+            .get();
 
-
-  String? _validateLoginData({
-    required String email,
-    required String password,
-  }) {
-    if (email.isEmpty || !email.contains('@')) {
-      return 'Please enter a valid email address';
+        if (docSnapshot.exists) {
+          _user = UserModel.fromMap(docSnapshot.data()!, _user!.uid);
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error refreshing user data: $e');
     }
-    if (password.isEmpty) {
-      return 'Please enter your password';
-    }
-    return null;
   }
 
   void clearError() {

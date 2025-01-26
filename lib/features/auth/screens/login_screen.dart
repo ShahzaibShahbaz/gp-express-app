@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/navigation/main_navigation.dart';
 import '../../gp/screens/gp_home_screen.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_text_field.dart';
@@ -45,21 +46,31 @@ class _LoginScreenState extends State<LoginScreen> {
         final success = await context.read<AuthProvider>().login(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
-          isGP: _isGP, // Pass the selected user type
+          isGP: _isGP,
         );
 
-        if (success && mounted) {
-          debugPrint("Login successful, user: ${context.read<AuthProvider>().user?.email}");
-          FeedbackUtils.showSuccessSnackBar(context, 'Successfully logged in!');
-          // Ensure auth state is updated
-          context.read<AuthProvider>().init();
+        if (!mounted) return;
+
+        if (success) {
+          FeedbackUtils.showSuccessSnackBar(context, 'Login successful!');
+
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const MainNavigation(),
+              ),
+            );
+          }
+        } else {
+          // Show error from AuthProvider if login failed
+          final error = context.read<AuthProvider>().error;
+          if (error != null) {
+            FeedbackUtils.showErrorSnackBar(context, error);
+          }
         }
       } catch (e) {
         if (mounted) {
-          FeedbackUtils.showErrorSnackBar(
-            context,
-            e.toString(),
-          );
+          FeedbackUtils.showErrorSnackBar(context, e.toString());
         }
       }
     }
@@ -74,9 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => authProvider.isGP
-                ? const GPHomeScreen()
-                : const Text('ge'), //CustomerHomeScreen(),
+            builder: (_) => const MainNavigation(),
           ),
         );
       });

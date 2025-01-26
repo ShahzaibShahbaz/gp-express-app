@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/color_constants.dart';
 
 class GPBottomNavBar extends StatelessWidget {
   final int selectedIndex;
@@ -32,7 +33,7 @@ class GPBottomNavBar extends StatelessWidget {
             children: [
               _NavBarItem(
                 icon: Icons.list_alt_outlined,
-                label: 'Parcels',
+                label: 'Missions',
                 isSelected: selectedIndex == 0,
                 onTap: () => onIndexChanged(0),
               ),
@@ -78,15 +79,16 @@ class _NavBarItem extends StatelessWidget {
         children: [
           Icon(
             icon,
-            color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+            color: isSelected ? AppColors.primaryBlue : Colors.grey,
             size: 28,
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+              color: isSelected ? AppColors.primaryBlue : Colors.grey,
               fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
         ],

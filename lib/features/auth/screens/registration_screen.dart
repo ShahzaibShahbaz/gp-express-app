@@ -58,11 +58,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
           fullName: _fullNameController.text.trim(),
-          userType: _isGP ? UserType.gp : UserType.customer,
+          isGP: _isGP,
           phoneNumber: _phoneController.text.trim(),
-          hasSubmittedId: _hasSubmittedId,
         );
-
         if (success && mounted) {
           FeedbackUtils.showSuccessSnackBar(
             context,

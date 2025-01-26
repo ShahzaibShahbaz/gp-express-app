@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum UserType { customer, gp }
 
 class UserModel {
@@ -8,7 +10,6 @@ class UserModel {
   final String? phoneNumber;
   final DateTime createdAt;
   final bool isVerified;
-  // New GP-specific fields
   final bool hasSubmittedId;
   final bool isIdVerified;
   final String? idSubmissionDate;
@@ -35,41 +36,68 @@ class UserModel {
       'uid': uid,
       'email': email,
       'fullName': fullName,
-      'userType': userType.toString().split('.').last,
+      'userType': userType == UserType.gp ? 'gp' : 'customer',
       'phoneNumber': phoneNumber,
-      'createdAt': createdAt.millisecondsSinceEpoch,
+      'createdAt': Timestamp.fromDate(createdAt), // Store as Timestamp
       'isVerified': isVerified,
       'hasSubmittedId': hasSubmittedId,
       'isIdVerified': isIdVerified,
       'idSubmissionDate': idSubmissionDate,
       'hasSeenWelcome': hasSeenWelcome,
-      'welcomeScreenSeenAt': welcomeScreenSeenAt?.millisecondsSinceEpoch,
+      'welcomeScreenSeenAt': welcomeScreenSeenAt != null ?
+      Timestamp.fromDate(welcomeScreenSeenAt!) : null, // Store as Timestamp
     };
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map, String uid) {
+    // Handle Timestamp conversion properly
+    DateTime? getDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) return value.toDate();
+      if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+      return null;
+    }
+
     return UserModel(
       uid: uid,
       email: map['email'] ?? '',
       fullName: map['fullName'] ?? '',
-      userType: map['userType'] != null
-          ? UserType.values.firstWhere(
-            (type) => type.toString().split('.').last == map['userType'],
-        orElse: () => UserType.customer,
-      )
-          : UserType.customer,
+      userType: map['userType'] == 'gp' ? UserType.gp : UserType.customer,
       phoneNumber: map['phoneNumber'],
-      createdAt: map['createdAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'])
-          : DateTime.now(),
+      createdAt: getDateTime(map['createdAt']) ?? DateTime.now(),
       isVerified: map['isVerified'] ?? false,
       hasSubmittedId: map['hasSubmittedId'] ?? false,
       isIdVerified: map['isIdVerified'] ?? false,
       idSubmissionDate: map['idSubmissionDate'],
       hasSeenWelcome: map['hasSeenWelcome'] ?? false,
-      welcomeScreenSeenAt: map['welcomeScreenSeenAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['welcomeScreenSeenAt'])
-          : null,
+      welcomeScreenSeenAt: getDateTime(map['welcomeScreenSeenAt']),
+    );
+  }
+
+  // Add method to create a copy with modifications
+  UserModel copyWith({
+    String? fullName,
+    String? phoneNumber,
+    bool? isVerified,
+    bool? hasSubmittedId,
+    bool? isIdVerified,
+    String? idSubmissionDate,
+    bool? hasSeenWelcome,
+    DateTime? welcomeScreenSeenAt,
+  }) {
+    return UserModel(
+      uid: uid,
+      email: email,
+      fullName: fullName ?? this.fullName,
+      userType: userType,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      createdAt: createdAt,
+      isVerified: isVerified ?? this.isVerified,
+      hasSubmittedId: hasSubmittedId ?? this.hasSubmittedId,
+      isIdVerified: isIdVerified ?? this.isIdVerified,
+      idSubmissionDate: idSubmissionDate ?? this.idSubmissionDate,
+      hasSeenWelcome: hasSeenWelcome ?? this.hasSeenWelcome,
+      welcomeScreenSeenAt: welcomeScreenSeenAt ?? this.welcomeScreenSeenAt,
     );
   }
 }
