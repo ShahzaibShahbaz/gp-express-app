@@ -28,21 +28,24 @@ class AuthProvider extends ChangeNotifier {
 
 
   void init() {
+    debugPrint("Initializing AuthProvider");
     _authService.authStateChanges.listen((User? firebaseUser) async {
+      debugPrint("Auth state changed: User ${firebaseUser?.uid}");
       if (firebaseUser == null) {
         _user = null;
         _state = AuthState.initial;
-        notifyListeners();
       } else {
         _setLoadingState('Loading user data...');
         try {
           _user = await _authService.getUserData(firebaseUser.uid);
           _state = AuthState.authenticated;
+          debugPrint("User authenticated: ${_user?.email}");
         } catch (e) {
-          _setErrorState('Error loading user data: ${e.toString()}');
+          debugPrint("Error loading user data: $e");
+          _setErrorState('Error loading user data');
         }
-        notifyListeners();
       }
+      notifyListeners();
     });
   }
 

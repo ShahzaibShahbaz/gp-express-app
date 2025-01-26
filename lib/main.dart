@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:gp_express_application/features/auth/screens/splash_screen.dart';
+import 'package:gp_express_application/root.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'features/auth/providers/auth_provider.dart';
@@ -17,33 +19,29 @@ void main() async {
   authProvider.init();
 
   runApp(
-  MultiProvider(providers: [
-    ChangeNotifierProvider.value(value: authProvider)
-  ],
-  child: const MyApp(),
-  ),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: authProvider)
+      ],
+      child: const MyApp(),
+    ),
   );
-
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-      ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'GP Express',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
-        ),
-        home: const LoginScreen(),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'GP Express',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
       ),
+      home: const Root(),
     );
   }
 }

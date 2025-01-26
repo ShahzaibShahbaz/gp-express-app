@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../gp/screens/gp_home_screen.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
@@ -48,12 +49,10 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         if (success && mounted) {
-          FeedbackUtils.showSuccessSnackBar(
-            context,
-            'Successfully logged in!',
-          );
-          // Add a small delay before navigation
-          await Future.delayed(const Duration(seconds: 1));
+          debugPrint("Login successful, user: ${context.read<AuthProvider>().user?.email}");
+          FeedbackUtils.showSuccessSnackBar(context, 'Successfully logged in!');
+          // Ensure auth state is updated
+          context.read<AuthProvider>().init();
         }
       } catch (e) {
         if (mounted) {
@@ -68,6 +67,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+
+    // Redirect if already authenticated
+    if (authProvider.isAuthenticated && authProvider.user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => authProvider.isGP
+                ? const GPHomeScreen()
+                : const Text('ge'), //CustomerHomeScreen(),
+          ),
+        );
+      });
+    }
     return Scaffold(
       backgroundColor: const Color(0xFF1976D2),
       body: Container(
