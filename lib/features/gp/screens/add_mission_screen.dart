@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/locations_data.dart';
+import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/feedback_utils.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../auth/models/user_model.dart';
@@ -33,6 +34,11 @@ class _AddMissionScreenState extends State<AddMissionScreen> {
   void dispose() {
     _capacityController.dispose();
     super.dispose();
+  }
+
+  Future<Map<String, double>> _getAirportCoordinates(String airport, String city) async {
+    final geocodingService = GeocodingService();
+    return await geocodingService.getCoordinates('$airport $city');
   }
 
   Future<void> _selectDateTime(bool isDeparture) async {
@@ -117,6 +123,10 @@ class _AddMissionScreenState extends State<AddMissionScreen> {
       if (user.userType != UserType.gp) {
         throw 'User is not a GP';
       }
+      final departureCoords = await _getAirportCoordinates(_departureAirport!, _departureCity!);
+      final arrivalCoords = await _getAirportCoordinates(_arrivalAirport!, _arrivalCity!);
+
+
 
       // Create the mission
       final mission = MissionModel(
@@ -125,9 +135,15 @@ class _AddMissionScreenState extends State<AddMissionScreen> {
         departureCountry: _departureCountry!,
         departureCity: _departureCity!,
         departureAirport: _departureAirport!,
+        // Add these fields with default values for now
+        departureLatitude: departureCoords['latitude']!,
+        departureLongitude: departureCoords['longitude']!,
         arrivalCountry: _arrivalCountry!,
         arrivalCity: _arrivalCity!,
         arrivalAirport: _arrivalAirport!,
+        // Add these fields with default values for now
+        arrivalLatitude: arrivalCoords['latitude']!,
+        arrivalLongitude: arrivalCoords['longitude']!,
         departureTime: _departureTime!,
         arrivalTime: _arrivalTime!,
         capacity: int.parse(_capacityController.text),
