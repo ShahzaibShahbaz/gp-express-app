@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'features/auth/models/user_model.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/splash_screen.dart';
@@ -24,7 +25,8 @@ class Root extends StatelessWidget {
 
         // Navigate based on auth state
         if (authProvider.isAuthenticated && authProvider.user != null) {
-          return authProvider.isGP
+          // Check user type and navigate accordingly
+          return authProvider.user!.userType == UserType.gp
               ? const GPHomeScreen()
               : const CustomerNavigation();
         }

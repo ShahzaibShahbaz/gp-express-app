@@ -80,15 +80,21 @@ class AuthProvider extends ChangeNotifier {
     String? phoneNumber,
   }) async {
     try {
+      debugPrint("Starting registration process"); // Add logging
       _setLoadingState('Creating account...');
 
       // Create user in Firebase Auth
+      debugPrint("Attempting to create Firebase Auth user"); // Add logging
       final UserCredential authResult = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
+      debugPrint("Firebase Auth user created successfully"); // Add logging
+
       if (authResult.user != null) {
+        debugPrint("Creating user data for Firestore"); // Add logging
+
         // Create user data for Firestore
         final userData = {
           'email': email,
@@ -102,11 +108,15 @@ class AuthProvider extends ChangeNotifier {
           'hasSeenWelcome': false,
         };
 
+        debugPrint("Saving user data to Firestore"); // Add logging
+
         // Save to Firestore
         await _firestore
             .collection('users')
             .doc(authResult.user!.uid)
             .set(userData);
+
+        debugPrint("User data saved successfully"); // Add logging
 
         // Create UserModel
         _user = UserModel(
@@ -124,6 +134,7 @@ class AuthProvider extends ChangeNotifier {
       }
       return false;
     } on FirebaseAuthException catch (e) {
+      debugPrint("FirebaseAuthException during registration: ${e.code} - ${e.message}"); // Add logging
       String errorMessage;
       switch (e.code) {
         case 'weak-password':
@@ -141,6 +152,7 @@ class AuthProvider extends ChangeNotifier {
       _setErrorState(errorMessage);
       return false;
     } catch (e) {
+      debugPrint("General error during registration: $e"); // Add logging
       _setErrorState(e.toString());
       return false;
     }
@@ -205,9 +217,12 @@ class AuthProvider extends ChangeNotifier {
     try {
       _setLoadingState('Signing out...');
       await _auth.signOut();
-      _user = null;
+      _user = null;  // Clear user data
       _state = AuthState.initial;
       notifyListeners();
+
+      // Clear any cached data if needed
+      // You might want to clear other providers' states here
     } catch (e) {
       _setErrorState('Error signing out: ${e.toString()}');
     }

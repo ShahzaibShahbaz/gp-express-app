@@ -2,7 +2,9 @@
 
 import 'package:flutter/material.dart';
 import '../../../core/widgets/custom_bottom_navbar.dart';
+import '../screens/add_request_screen.dart';
 import '../screens/customer_home_screen.dart';
+import '../screens/customer_profile_screen.dart';
 import '../screens/gp_search_screen.dart';
 
 class CustomerNavigation extends StatefulWidget {
@@ -19,9 +21,9 @@ class _CustomerNavigationState extends State<CustomerNavigation> {
   final List<Widget> _screens = [
     const CustomerHomeScreen(),
     const GPSearchScreen(),
-    const Center(child: Text('Send Package Screen')), // TODO: Implement
+    const AddRequestScreen(),
     const Center(child: Text('Notifications Screen')), // TODO: Implement
-    const Center(child: Text('Profile Screen')), // TODO: Implement
+    const CustomerProfileScreen()
   ];
 
   @override

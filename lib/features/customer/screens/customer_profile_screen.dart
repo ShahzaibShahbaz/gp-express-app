@@ -1,19 +1,22 @@
+// lib/features/customer/screens/customer_profile_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/utils/page_transitions.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
-import 'edit_profile_screen.dart';
 
-class GPProfileScreen extends StatefulWidget {
-  const GPProfileScreen({Key? key}) : super(key: key);
+import '../../gp/screens/edit_profile_screen.dart';
+
+class CustomerProfileScreen extends StatefulWidget {
+  const CustomerProfileScreen({Key? key}) : super(key: key);
 
   @override
-  State<GPProfileScreen> createState() => _GPProfileScreenState();
+  State<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
 }
 
-class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProviderStateMixin {
+class _CustomerProfileScreenState extends State<CustomerProfileScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -52,11 +55,52 @@ class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProv
     super.dispose();
   }
 
+  Future<void> _showLogoutDialog() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Déconnexion'),
+        content: const Text('Êtes-vous sûr de vouloir vous déconnecter?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Déconnexion'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true && mounted) {
+      try {
+        await context.read<AuthProvider>().signOut();
+
+        if (mounted) {
+          // Navigate and remove all previous routes
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error signing out: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final user = context
-        .watch<AuthProvider>()
-        .user;
+    final user = context.watch<AuthProvider>().user;
 
     return Scaffold(
       appBar: AppBar(
@@ -83,7 +127,7 @@ class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProv
           position: _slideAnimation,
           child: ListView(
             children: [
-              // Profile Header Section with staggered animation
+              // Profile Header
               AnimatedBuilder(
                 animation: _animationController,
                 builder: (context, child) {
@@ -108,13 +152,12 @@ class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProv
                               child: const CircleAvatar(
                                 radius: 40,
                                 backgroundColor: Colors.grey,
-                                child: Icon(Icons.person, size: 40,
-                                    color: Colors.white),
+                                child: Icon(Icons.person, size: 40, color: Colors.white),
                               ),
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              user?.fullName ?? 'GP Name',
+                              user?.fullName ?? 'Customer Name',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -147,7 +190,22 @@ class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProv
 
               const SizedBox(height: 8),
 
-              // Settings Section with delayed animation
+              // Request History Section
+              _buildAnimatedSection(
+                title: 'Historique des demandes',
+                delay: 0.1,
+                children: [
+                  _buildSettingsTile(
+                    icon: Icons.history,
+                    title: 'Voir les demandes précédentes',
+                    onTap: () {
+                      // TODO: Navigate to request history
+                    },
+                  ),
+                ],
+              ),
+
+              // Settings Section
               _buildAnimatedSection(
                 title: 'Paramètres',
                 delay: 0.2,
@@ -167,13 +225,6 @@ class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProv
                     },
                   ),
                   _buildSettingsTile(
-                    icon: Icons.security,
-                    title: 'Sécurité',
-                    onTap: () {
-                      // TODO: Implement security settings
-                    },
-                  ),
-                  _buildSettingsTile(
                     icon: Icons.language,
                     title: 'Langue',
                     onTap: () {
@@ -183,16 +234,14 @@ class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProv
                 ],
               ),
 
-              const SizedBox(height: 8),
-
-              // Help & Support Section with delayed animation
+              // Help & Support Section
               _buildAnimatedSection(
                 title: 'Aide & Support',
                 delay: 0.3,
                 children: [
                   _buildSettingsTile(
                     icon: Icons.help_outline,
-                    title: 'Centre d\'aide',
+                    title: "Centre d'aide",
                     onTap: () {
                       // TODO: Implement help center
                     },
@@ -216,12 +265,11 @@ class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProv
 
               const SizedBox(height: 8),
 
-              // Logout Section with delayed animation
+              // Logout Section
               AnimatedBuilder(
                 animation: _animationController,
                 builder: (context, child) {
-                  final delayedValue = (_animationController.value - 0.4).clamp(
-                      0.0, 1.0);
+                  final delayedValue = (_animationController.value - 0.4).clamp(0.0, 1.0);
                   return Transform.translate(
                     offset: Offset(0, 20 * (1 - delayedValue)),
                     child: Opacity(
@@ -232,7 +280,7 @@ class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProv
                           icon: Icons.logout,
                           title: 'Déconnexion',
                           titleColor: Colors.red,
-                          onTap: () => _showLogoutDialog,
+                          onTap: _showLogoutDialog,
                         ),
                       ),
                     ),
@@ -256,8 +304,7 @@ class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProv
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
-        final delayedValue = (_animationController.value - delay).clamp(
-            0.0, 1.0);
+        final delayedValue = (_animationController.value - delay).clamp(0.0, 1.0);
         return Transform.translate(
           offset: Offset(0, 20 * (1 - delayedValue)),
           child: Opacity(
@@ -307,48 +354,5 @@ class _GPProfileScreenState extends State<GPProfileScreen> with SingleTickerProv
       ),
       onTap: onTap,
     );
-  }
-
-  Future<void> _showLogoutDialog() async {
-    final shouldLogout = await showDialog<bool>(
-      context: context, // context is available from State
-      builder: (context) =>
-          AlertDialog(
-            title: const Text('Déconnexion'),
-            content: const Text('Êtes-vous sûr de vouloir vous déconnecter?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Annuler'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red,
-                ),
-                child: const Text('Déconnexion'),
-              ),
-            ],
-          ),
-    );
-
-    if (shouldLogout == true && mounted) {
-      try {
-        await context.read<AuthProvider>().signOut();
-
-        if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error signing out: $e')),
-          );
-        }
-      }
-    }
   }
 }

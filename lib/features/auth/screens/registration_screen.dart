@@ -25,6 +25,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _isGP = false;
   bool _acceptTerms = false;
   bool _hasSubmittedId = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -36,7 +37,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) {
+      debugPrint("Form validation failed"); // Add logging
+      return;
+    }
+
     if (!_acceptTerms) {
+      debugPrint("Terms not accepted"); // Add logging
       FeedbackUtils.showErrorSnackBar(
         context,
         'Please accept the terms and privacy policy',
@@ -45,6 +52,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
 
     if (_isGP && !_hasSubmittedId) {
+      debugPrint("ID submission required for GP"); // Add logging
       FeedbackUtils.showErrorSnackBar(
         context,
         'Please indicate that you have submitted your ID',
@@ -52,34 +60,51 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
 
-    if (_formKey.currentState!.validate()) {
-      try {
-        final success = await context.read<AuthProvider>().register(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-          fullName: _fullNameController.text.trim(),
-          isGP: _isGP,
-          phoneNumber: _phoneController.text.trim(),
+    setState(() => _isLoading = true);
+
+    try {
+      debugPrint("Attempting registration"); // Add logging
+      final success = await context.read<AuthProvider>().register(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        fullName: _fullNameController.text.trim(),
+        isGP: _isGP,
+        phoneNumber: _phoneController.text.trim(),
+      );
+
+      if (success && mounted) {
+        debugPrint("Registration successful"); // Add logging
+        FeedbackUtils.showSuccessSnackBar(
+          context,
+          'Account created successfully! Please login.',
         );
-        if (success && mounted) {
-          FeedbackUtils.showSuccessSnackBar(
-            context,
-            'Account created successfully! Please login.',
-          );
 
-          await Future.delayed(const Duration(seconds: 2));
+        await Future.delayed(const Duration(seconds: 2));
 
-          if (mounted) {
-            Navigator.pop(context, _emailController.text);
-          }
-        }
-      } catch (e) {
         if (mounted) {
+          Navigator.pop(context, _emailController.text);
+        }
+      } else {
+        debugPrint("Registration failed"); // Add logging
+        if (mounted) {
+          final error = context.read<AuthProvider>().error;
           FeedbackUtils.showErrorSnackBar(
             context,
-            e.toString(),
+            error ?? 'Registration failed. Please try again.',
           );
         }
+      }
+    } catch (e) {
+      debugPrint("Error during registration: $e"); // Add logging
+      if (mounted) {
+        FeedbackUtils.showErrorSnackBar(
+          context,
+          e.toString(),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
